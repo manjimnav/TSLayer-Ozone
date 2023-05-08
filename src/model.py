@@ -42,14 +42,14 @@ def get_tf_model(parameters, label_idxs, values_idxs):
     layers_list = []
 
     units = n_features_in
-    
+
     if model == 'dense':
         layers_list.insert(0,layers.Flatten())
         units = n_features_in*seq_len
 
     layers_list = [
-        layer_base(units//2, activation="relu", name="layer1"),
-        layer_base(units//4, activation="relu", name="layer2"),
+        layer_base(units//2, activation="relu" if model != 'lstm' else "tanh", name="layer1"),
+        layer_base(units//4, activation="relu" if model != 'lstm' else "tanh", name="layer2"),
         layers.Flatten(),
         layers.Dense(n_features_out*pred_len, activation=activation, name="output")
         ]
@@ -58,6 +58,9 @@ def get_tf_model(parameters, label_idxs, values_idxs):
         regularization = parameters['selection']['params']['regularization']
         layers_list.insert(0, TimeSelectionLayer(name='selector', num_outputs=n_features_out, regularization=regularization, select_timesteps=select_timesteps))
         layers_list.insert(0, layers.Reshape((seq_len, n_features_in)))
+    
+    if model == 'lstm':
+        layers_list.insert(0, keras.Input(shape=(seq_len, n_features_in)))
         
     model = keras.Sequential(layers_list)
     

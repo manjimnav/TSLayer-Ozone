@@ -119,7 +119,7 @@ class ExperimentInstance:
     def calculate_metrics(self, model, history, data_test, duration):
 
         model_type = self.parameters['model']['params']['type']
-
+        
         mean = self.scaler.mean_[self.label_idxs]
         std = self.scaler.scale_[self.label_idxs]
         if model_type == 'tensorflow':

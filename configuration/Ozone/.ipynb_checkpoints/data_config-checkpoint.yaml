@@ -1,0 +1,27 @@
+rondadelvalle:
+  seq_len:
+    - 24
+    - 72
+    - step: 24
+  pred_len:
+    - 1
+    - 8
+    - 24
+  shift:
+    - 24
+  select_timesteps:
+    - True
+
+torneo:
+  seq_len:
+    - 24
+    - 72
+    - step: 24
+  pred_len:
+    - 1
+    - 8
+    - 24
+  shift:
+    - 24
+  select_timesteps:
+    - True

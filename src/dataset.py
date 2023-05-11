@@ -82,10 +82,7 @@ def windowing(train_scaled, valid_scaled, test_scaled, values_idxs, label_idxs, 
         data_train = list(map(lambda x: x.numpy(), next(data_train.batch(999999).__iter__())))
         data_valid = list(map(lambda x: x.numpy(), next(data_valid.batch(999999).__iter__())))
     
-    print(test_scaled.shape)
     data_test = list(map(lambda x: x.numpy(), next(data_test.batch(999999).__iter__())))
-    print(data_test[0].shape)
-    print(data_test[1].shape)
 
     return data_train, data_valid, data_test
     

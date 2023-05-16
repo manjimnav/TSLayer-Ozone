@@ -1,8 +1,7 @@
 from tensorflow import keras
 from tensorflow.keras import layers
 from functools import partial
-from functools import partial
-from .layer import TimeSelectionLayer, binary_sigmoid_unit
+from .layer import TimeSelectionLayer, binary_sigmoid_unit, TimeSelectionLayerSmooth
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import Lasso
 import numpy as np
@@ -57,6 +56,11 @@ def get_tf_model(parameters, label_idxs, values_idxs):
     if selection == 'TimeSelectionLayer':
         regularization = parameters['selection']['params']['regularization']
         layers_list.insert(0, TimeSelectionLayer(name='selector', num_outputs=n_features_out, regularization=regularization, select_timesteps=select_timesteps))
+        layers_list.insert(0, layers.Reshape((seq_len, n_features_in)))
+    
+    elif selection == 'TimeSelectionLayerSmooth':
+        regularization = parameters['selection']['params']['regularization']
+        layers_list.insert(0, TimeSelectionLayerSmooth(name='selector', num_outputs=n_features_out, regularization=regularization, select_timesteps=select_timesteps))
         layers_list.insert(0, layers.Reshape((seq_len, n_features_in)))
     
     if model == 'lstm':

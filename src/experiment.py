@@ -89,7 +89,7 @@ class ExperimentInstance:
             verbose = 0
         )
 
-        if self.parameters['selection']['name'] == 'TimeSelectionLayer':
+        if self.parameters['selection']['name'] == 'TimeSelectionLayer' or self.parameters['selection']['name'] == 'TimeSelectionLayerSmooth':
             self.selected_idxs = get_selected_idxs(model, get_feature_names(self.data, self.parameters))
 
         return model, history
@@ -107,8 +107,6 @@ class ExperimentInstance:
             importances = model.coef_.max(axis=0)
         else:
             importances = model.feature_importances_
-        print(model)
-        print(importances)
         self.selected_idxs = features_idxs[importances>0]
 
         return model, None

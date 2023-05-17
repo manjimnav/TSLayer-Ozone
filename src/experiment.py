@@ -58,7 +58,7 @@ class ExperimentInstance:
         self.selected_idxs = select_features(train_scaled, self.parameters, self.label_idxs)
 
         data_train, data_valid, data_test = windowing(train_scaled, valid_scaled, test_scaled, self.values_idxs, self.label_idxs, self.selected_idxs, self.parameters)
- 
+        
         return data_train, data_valid, data_test
 
     def read_data(self):
@@ -96,11 +96,20 @@ class ExperimentInstance:
     
     def train_sk(self, model, data_train):
 
+        model_name = self.parameters['model']['name']
+
         model.fit(data_train[0], data_train[1])
 
         features = get_feature_names(self.data, self.parameters)
         features_idxs = np.arange(0, features.flatten().shape[0])
-        self.selected_idxs = features_idxs[model.feature_importances_>0]
+
+        if model_name == 'lasso':
+            importances = model.coef_.max(axis=0)
+        else:
+            importances = model.feature_importances_
+        print(model)
+        print(importances)
+        self.selected_idxs = features_idxs[importances>0]
 
         return model, None
 
@@ -127,6 +136,8 @@ class ExperimentInstance:
         else:
             predictions = model.predict(data_test[0])
         
+        
+
         true = data_test[1]*std + mean
         predictions = predictions*std + mean
 
@@ -145,7 +156,8 @@ class ExperimentInstance:
 
         metrics['duration'] = duration
 
-        metrics['history'] = str(history.history.get('val_loss', None))
+        if history is not None:
+            metrics['history'] = str(history.history.get('val_loss', None))
 
         metrics['code'] = self.code
         
@@ -221,6 +233,8 @@ class ExperimentLauncher:
             general_params = {**dataset_params, **selection_params, **model_params}
 
             for params in self.nested_product(general_params):
+                if params['model']['params']['type'] == "sklearn" and params['selection']['name'] != 'NoSelection':
+                    continue
                 self.seed()                
                 experiment = ExperimentInstance(params)
                 

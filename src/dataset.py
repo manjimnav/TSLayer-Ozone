@@ -21,7 +21,6 @@ def collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs=None, sele
         selected_inputs = tf.reshape(padded_selection, [seq_len, feat_size])
     
     outputs = tf.squeeze(tf.reshape(tf.gather(x[-pred_len:], [label_idxs], axis=1), [pred_len*len(label_idxs)]))
-
     return selected_inputs, outputs
 
 def batch(seq_len, x):
@@ -70,7 +69,6 @@ def windowing(train_scaled, valid_scaled, test_scaled, values_idxs, label_idxs, 
     data_test = tf.data.Dataset.from_tensor_slices(test_scaled)
     
     batch_seq = partial(batch, seq_len+pred_len)
-
     data_train = data_train.window(seq_len+pred_len, shift=shift, drop_remainder=True).flat_map(batch_seq).map(lambda x: collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs, select_timesteps, keep_dims))
     data_valid = data_valid.window(seq_len+pred_len, shift=shift, drop_remainder=True).flat_map(batch_seq).map(lambda x: collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs, select_timesteps, keep_dims))
     data_test = data_test.window(seq_len+pred_len, shift=shift, drop_remainder=True).flat_map(batch_seq).map(lambda x: collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs, select_timesteps, keep_dims))

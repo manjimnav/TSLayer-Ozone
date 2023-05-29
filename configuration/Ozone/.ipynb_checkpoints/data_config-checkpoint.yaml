@@ -6,6 +6,7 @@ rondadelvalle:
   pred_len:
     - 1
     - 8
+    - 16
     - 24
   shift:
     - 24
@@ -20,6 +21,7 @@ torneo:
   pred_len:
     - 1
     - 8
+    - 16
     - 24
   shift:
     - 24
@@ -34,6 +36,7 @@ bermejales:
   pred_len:
     - 1
     - 8
+    - 16
     - 24
   shift:
     - 24

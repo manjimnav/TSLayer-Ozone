@@ -89,7 +89,7 @@ class ExperimentInstance:
             verbose = 0
         )
 
-        if self.parameters['selection']['name'] == 'TimeSelectionLayer' or self.parameters['selection']['name'] == 'TimeSelectionLayerSmooth':
+        if 'TimeSelectionLayer' in self.parameters['selection']['name']:
             self.selected_idxs = get_selected_idxs(model, get_feature_names(self.data, self.parameters))
 
         return model, history
@@ -230,7 +230,7 @@ class ExperimentLauncher:
 
             general_params = {**dataset_params, **selection_params, **model_params}
 
-            for params in self.nested_product(general_params):
+            for params in self.nested_product(general_params): # TODO: Introducir random search
                 if params['model']['params']['type'] == "sklearn" and params['selection']['name'] != 'NoSelection':
                     continue
                 self.seed()                

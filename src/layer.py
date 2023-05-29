@@ -25,7 +25,7 @@ class TimeSelectionLayer(tf.keras.layers.Layer):
         self.regularization = regularization
     
     def custom_regularizer(self, weights):
-        weight = self.regularization/math.log((2**self.num_outputs))
+        weight = self.regularization/math.log(10**self.num_outputs)
         return tf.reduce_sum(weight * binary_sigmoid_unit(weights))
 
     def build(self, input_shape):
@@ -57,7 +57,7 @@ class TimeSelectionLayerSmooth(tf.keras.layers.Layer):
         self.avg_pool_1d = tf.keras.layers.AveragePooling1D(pool_size=3, strides=1, padding='same')
     
     def custom_regularizer(self, weights):
-        weight = self.regularization/math.log((2**self.num_outputs))
+        weight = self.regularization/math.log(10**self.num_outputs)
         return tf.reduce_sum(weight * binary_sigmoid_unit(weights))
 
     def build(self, input_shape):
@@ -74,6 +74,36 @@ class TimeSelectionLayerSmooth(tf.keras.layers.Layer):
     def get_mask(self):
         
         return binary_sigmoid_unit(self.avg_pool_1d(tf.expand_dims(self.mask, 0)))[0]
+        
+    def call(self, inputs):
+
+        return tf.multiply(inputs, self.get_mask())
+
+class TimeSelectionLayerConstant(tf.keras.layers.Layer):
+    def __init__(self, num_outputs, regularization=0.001, select_timesteps=True, **kwargs):
+        super(TimeSelectionLayerConstant, self).__init__(**kwargs)
+        self.mask = None
+        self.num_outputs = num_outputs
+        self.select_timesteps = select_timesteps
+        self.regularization = regularization
+    
+    def custom_regularizer(self, weights):
+        return tf.reduce_sum(self.regularization * binary_sigmoid_unit(weights))
+
+    def build(self, input_shape):
+        if self.select_timesteps:
+            shape = [int(input_shape[-2]), int(input_shape[-1])]
+        else:
+            shape = [int(input_shape[-1])]
+
+        self.mask = self.add_weight("kernel",
+                                      shape=shape,
+                                      initializer=tf.keras.initializers.Constant(value=0.01),
+                                      regularizer=self.custom_regularizer)
+        
+    def get_mask(self):
+        
+        return binary_sigmoid_unit(tf.expand_dims(self.mask, 0))[0]
         
     def call(self, inputs):
 

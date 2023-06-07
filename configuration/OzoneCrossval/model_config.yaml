@@ -1,0 +1,29 @@
+dense:
+  keep_dims: False
+  layers:
+    - 1
+    - 5
+  units:
+    - 4
+    - 256
+  type: tensorflow
+
+lstm:
+  keep_dims: True
+  layers:
+    - 1
+    - 5
+  units:
+    - 4
+    - 256
+  type: tensorflow
+
+cnn:
+  keep_dims: True
+  layers:
+    - 1
+    - 5
+  units:
+    - 4
+    - 256
+  type: tensorflow

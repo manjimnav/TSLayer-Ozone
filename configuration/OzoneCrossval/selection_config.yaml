@@ -1,0 +1,5 @@
+NoSelection:
+TimeSelectionLayer:
+  regularization: 
+    - 0.00001
+    - 0.01

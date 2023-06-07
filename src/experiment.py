@@ -14,6 +14,9 @@ import random
 import os
 import hashlib
 import json
+from copy import deepcopy
+from bayes_opt import BayesianOptimization, UtilityFunction
+
 
 
 class ExperimentInstance:
@@ -51,7 +54,7 @@ class ExperimentInstance:
         if len(self.values_idxs)<1 and not self.parameters['dataset']['params'].get('select_timesteps', False):
             raise Exception(f"Cannot select features in dataset {self.parameters['dataset']['name']}")
             
-        train_df, valid_df, test_df = split(self.data)
+        train_df, valid_df, test_df = split(self.data, self.parameters)
 
         train_scaled, valid_scaled, test_scaled, self.scaler = scale(train_df, valid_df, test_df)
 
@@ -63,10 +66,6 @@ class ExperimentInstance:
 
     def read_data(self):
         self.data = pd.read_csv(self.dataset_path)
-
-        data_train, data_valid, data_test = self.preprocess_data()
-
-        return data_train, data_valid, data_test
     
     def recursive_items(self, dictionary, parent_key=None):
         for key, value in dictionary.items():
@@ -123,26 +122,30 @@ class ExperimentInstance:
         return model, history
         
 
-    def calculate_metrics(self, model, history, data_test, duration):
+    def calculate_metrics(self, model, history, data_test, data_valid, duration):
 
         model_type = self.parameters['model']['params']['type']
 
         mean = self.scaler.mean_[self.label_idxs]
         std = self.scaler.scale_[self.label_idxs]
-        if model_type == 'tensorflow':
-            predictions = model.predict(data_test[0])
-        else:
-            predictions = model.predict(data_test[0])
-        
-        
+
+        predictions = model.predict(data_test[0])
+        predictions_valid = model.predict(data_valid[0])
 
         true = data_test[1]*std + mean
+        true_valid = data_valid[1]*std + mean
         predictions = predictions*std + mean
+        predictions_valid = predictions_valid*std + mean
 
         metrics = pd.DataFrame({'mean_squared_error': mean_squared_error(true, predictions), 
+                                'root_mean_squared_error': np.sqrt(mean_squared_error(true, predictions)),
                 'mean_absolute_error': mean_absolute_error(true, predictions),
                 'mean_absolute_percentage_error': mean_absolute_percentage_error(true, predictions),
-                'r2': r2_score(true, predictions)}, index=[0])
+                'r2': r2_score(true, predictions),
+                'mean_absolute_error_valid': mean_absolute_error(true_valid, predictions_valid),
+                'root_mean_squared_error_valid': np.sqrt(mean_squared_error(true_valid, predictions_valid)),
+                'mean_squared_error_valid': mean_squared_error(true_valid, predictions_valid),
+                }, index=[0])
 
         metrics['dataset'] = self.dataset
         for key, value in self.recursive_items(self.parameters):
@@ -156,27 +159,46 @@ class ExperimentInstance:
 
         if history is not None:
             metrics['history'] = str(history.history.get('val_loss', None))
+            metrics['val_loss'] = min(history.history.get('val_loss', None))
 
         metrics['code'] = self.code
         
         return metrics
     
-    def run(self):
-        
-        data_train, data_valid, data_test = self.read_data()
+    def execute_one(self):
+        data_train, data_valid, data_test = self.preprocess_data()
+
         model = get_model(self.parameters, self.label_idxs, self.values_idxs)
 
         start = time.time()
         model, history = self.train(model, data_train, data_valid)
         duration = time.time() - start
 
-        self.metrics = self.calculate_metrics(model, history, data_test, duration)
+        metrics = self.calculate_metrics(model, history, data_test, data_valid, duration)
+
+        return metrics
+    
+    def run(self):
+        
+        self.read_data()
+
+        split_by_year = self.parameters['dataset']['params'].get('crossval', False)
+
+        self.metrics = pd.DataFrame()
+        if split_by_year:
+            for test_year in sorted(self.data.year.unique()): # yearly crossval
+                test_year = self.parameters['dataset']['params']['test_year'] = test_year
+                year_metrics = self.execute_one()
+
+                self.metrics = pd.concat([self.metrics, year_metrics])
+        else:
+            self.metrics = self.execute_one() 
 
         return self.metrics
 
 class ExperimentLauncher:
 
-    def __init__(self, config_path, save_file="../results/TimeSelection/results.csv") -> None:
+    def __init__(self, config_path, save_file="../results/TimeSelection/results.csv", search_type='grid', iterations=10) -> None:
         
         data_config, selection_config, model_config = f"{config_path}data_config.yaml", f"{config_path}selection_config.yaml", f"{config_path}model_config.yaml"
 
@@ -184,6 +206,9 @@ class ExperimentLauncher:
         self.selection_configuration = self.load_config(selection_config)
         self.model_configuration = self.load_config(model_config)
         self.save_file = save_file
+        self.search_type = search_type
+        self.iterations = iterations
+        self.optimizer = None
 
 
         if os.path.exists(self.save_file):
@@ -220,6 +245,56 @@ class ExperimentLauncher:
         random.seed(seed)
         np.random.seed(seed)
 
+    def transform_to_bounds(self, general_params):
+        bounds = {}
+        for general_key in general_params.keys():
+            if general_params[general_key]['params'] is not None:
+                bound_params = {key: value for key, value in general_params[general_key]['params'].items() if type(value) == list}
+
+                bounds.update(bound_params)
+        
+        return bounds
+    
+    def update_params(self, optimized_params, general_params):
+        
+        params = deepcopy(general_params)
+        for general_key in params.keys():
+            if params[general_key]['params'] is not None:
+                keys_to_update = list(params[general_key]['params'].keys())
+                for key_to_update in keys_to_update:
+                    
+                    if key_to_update in optimized_params:
+                        BuiltinClass = params[general_key]['params'][key_to_update][0].__class__
+                        params[general_key]['params'][key_to_update] = BuiltinClass(optimized_params[key_to_update])
+        return params
+    
+    def bayesian_optimization(self, general_params):
+
+        bounds = self.transform_to_bounds(general_params)
+
+        self.optimizer = BayesianOptimization(
+            f=None,
+            pbounds=bounds,
+            verbose=2,
+            random_state=1,
+        )
+
+        utility = UtilityFunction(kind="ucb", kappa=4, xi=0.0)
+
+        for _ in range(self.iterations):
+            optimized_params = self.optimizer.suggest(utility)      
+
+            params = self.update_params(optimized_params, general_params)
+
+            yield params
+
+    def search_hyperparameters(self, general_params):
+        if self.search_type == 'grid':
+            yield from self.nested_product(general_params)
+        elif self.search_type == 'bayesian':
+            yield from self.bayesian_optimization(general_params)
+        
+
     def run(self):
 
         for dataset, selection, model in product(self.data_configuration.keys(), self.selection_configuration.keys(), self.model_configuration.keys()):
@@ -230,18 +305,26 @@ class ExperimentLauncher:
 
             general_params = {**dataset_params, **selection_params, **model_params}
 
-            for params in self.nested_product(general_params): # TODO: Introducir random search
-                if params['model']['params']['type'] == "sklearn" and params['selection']['name'] != 'NoSelection':
-                    continue
+            for params in self.search_hyperparameters(general_params):
+
+                if (params['model']['params']['type'] == "sklearn" and params['selection']['name'] != 'NoSelection') or \
+                    (params['selection']['name'] == 'NoSelection' and params['model']['params']['type'] != "sklearn"):
+                    continue   
+                
                 self.seed()                
                 experiment = ExperimentInstance(params)
                 
                 if experiment.code in self.metrics.get('code', default=pd.Series([], dtype=str)).tolist():
                     print(f"Skipping {params}")
+                    if self.optimizer == 'bayesian':
+                        self.optimizer.register(params=params, target=-self.metrics.loc[self.metrics.code == experiment.code,'root_mean_squared_error_valid'].mean())
                     continue
 
                 metrics = experiment.run()
 
+                if self.optimizer == 'bayesian':
+                    self.optimizer.register(params=params, target=-metrics['root_mean_squared_error_valid'].mean())
+            
                 self.metrics = pd.concat([self.metrics, metrics])
 
                 self.metrics.to_csv(self.save_file, index=None)

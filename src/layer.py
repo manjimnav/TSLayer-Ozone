@@ -25,7 +25,7 @@ class TimeSelectionLayer(tf.keras.layers.Layer):
         self.regularization = regularization
     
     def custom_regularizer(self, weights):
-        weight = self.regularization/math.log(10**self.num_outputs)
+        weight = self.regularization/(10**math.log2(self.num_outputs))
         return tf.reduce_sum(weight * binary_sigmoid_unit(weights))
 
     def build(self, input_shape):

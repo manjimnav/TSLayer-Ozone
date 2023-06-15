@@ -279,7 +279,7 @@ class ExperimentLauncher:
             random_state=1,
         )
 
-        utility = UtilityFunction(kind="ucb", kappa=4, xi=0.0)
+        utility = UtilityFunction(kind="ucb", kappa=2.576)
 
         for _ in range(self.iterations):
             optimized_params = self.optimizer.suggest(utility)      
@@ -307,8 +307,7 @@ class ExperimentLauncher:
 
             for params in self.search_hyperparameters(general_params):
 
-                if (params['model']['params']['type'] == "sklearn" and params['selection']['name'] != 'NoSelection') or \
-                    (params['selection']['name'] == 'NoSelection' and params['model']['params']['type'] != "sklearn"):
+                if (params['model']['params']['type'] == "sklearn" and params['selection']['name'] != 'NoSelection'):
                     continue   
                 
                 self.seed()                

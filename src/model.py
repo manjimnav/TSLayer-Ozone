@@ -3,6 +3,7 @@ from tensorflow.keras import layers
 from functools import partial
 from .layer import TimeSelectionLayer, binary_sigmoid_unit, TimeSelectionLayerSmooth, TimeSelectionLayerConstant
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Lasso
 import numpy as np
 
@@ -32,6 +33,7 @@ def get_tf_model(parameters, label_idxs, values_idxs):
     model = parameters['model']['name']
     n_layers = parameters['model']['params']['layers']
     n_units = parameters['model']['params']['units']
+    dropout = parameters['model']['params']['dropout']
     selection = parameters['selection']['name']
     pred_len = parameters['dataset']['params']['pred_len']
     seq_len = parameters['dataset']['params']['seq_len']
@@ -52,6 +54,7 @@ def get_tf_model(parameters, label_idxs, values_idxs):
     for i in range(n_layers):
         layers_list.append(layer_base(
             n_units, activation="relu" if model != 'lstm' else "tanh", name=f"layer{i}"))
+        layers_list.append(layers.Dropout(dropout))
 
     layers_list.extend([
         layers.Flatten(),
@@ -99,6 +102,8 @@ def get_sk_model(parameters):
         model = DecisionTreeRegressor(max_depth=parameters['model']['params']['max_depth'])
     elif model == 'lasso':
         model = Lasso(alpha=parameters['model']['params']['regularization'])
+    elif model == 'randomforest':
+        model = RandomForestRegressor(max_depth=parameters['model']['params']['max_depth'], n_estimators=parameters['model']['params']['n_estimators'])
     else:
         raise NotImplementedError()
 

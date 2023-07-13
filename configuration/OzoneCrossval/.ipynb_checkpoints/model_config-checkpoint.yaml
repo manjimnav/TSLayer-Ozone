@@ -1,0 +1,26 @@
+dense:
+  keep_dims: False
+  layers:
+    - 1
+    - 3
+  units:
+    - 4
+    - 52
+  dropout:
+    - 0.0
+    - 0.5
+  type: tensorflow
+  
+decisiontree:
+  keep_dims: False
+  max_depth:
+    - 2
+    - 32
+  type: sklearn
+
+lasso:
+  keep_dims: False
+  regularization:
+    - 0.
+    - 1.
+  type: sklearn

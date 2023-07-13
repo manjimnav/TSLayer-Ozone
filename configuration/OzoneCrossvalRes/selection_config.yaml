@@ -1,0 +1,5 @@
+TimeSelectionLayer:
+  regularization: 
+    - 0.00000001
+    - 0.01
+  residual: True

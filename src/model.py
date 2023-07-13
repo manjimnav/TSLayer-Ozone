@@ -3,6 +3,7 @@ from tensorflow.keras import layers
 from functools import partial
 from .layer import TimeSelectionLayer, binary_sigmoid_unit, TimeSelectionLayerSmooth, TimeSelectionLayerConstant
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Lasso
 import numpy as np
 
@@ -116,6 +117,8 @@ def get_sk_model(parameters):
         model = DecisionTreeRegressor(max_depth=parameters['model']['params']['max_depth'])
     elif model == 'lasso':
         model = Lasso(alpha=parameters['model']['params']['regularization'])
+    elif model == 'randomforest':
+        model = RandomForestRegressor(max_depth=parameters['model']['params']['max_depth'], n_estimators=parameters['model']['params']['n_estimators'])
     else:
         raise NotImplementedError()
 

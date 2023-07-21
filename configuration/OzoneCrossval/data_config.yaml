@@ -28,7 +28,7 @@ bermejales:
 rondadelvalle:
   seq_len:
     - 24
-    - 1
+    - 72
   pred_len: 24
   shift: 24
   select_timesteps: True
@@ -37,7 +37,7 @@ rondadelvalle:
 torneo:
   seq_len:
     - 24
-    - 1
+    - 72
   pred_len: 24
   shift: 24
   select_timesteps: True

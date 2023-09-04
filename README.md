@@ -39,17 +39,17 @@ The experimentation is performed via the `experiment.ipynb` notebook which runs 
 
 In addition to the full experimentation, the reproduce ipynb includes the code needed to executes one single experiment by employing the ``ExperimentInstance`` class. This class only requires a `dict` with the hyperparameters in the following format:
 
-```json
+```python
 {
-    'dataset': {'name': 'Aljarafe', 'params': 
-                        {'seq_len': 41, 'pred_len': 24, 'shift': 24,'crossval': True}
+    "dataset": {"name": "Aljarafe", "params": 
+                        {"seq_len": 41, "pred_len": 24, "shift": 24,"crossval": True}
     }, 
-    'selection': {'name': 'TSL', 'params': 
-                                    {'regularization': 0.0088594323988978}
+    "selection": {"name": "TSL", "params": 
+                                    {"regularization": 0.0088594323988978}
     }, 
-    'model': {'name': 'dense', 'params': 
-                                    {'keep_dims': False, 'layers': 2 'units': 47,
-                                     'dropout': 0.163322450886048, 'type': 'tensorflow'}
+    "model": {"name": "dense", "params": 
+                                    {"keep_dims": False, "layers": 2 "units": 47,
+                                     "dropout": 0.163322450886048, "type": "tensorflow"}
     }
 }
 ```

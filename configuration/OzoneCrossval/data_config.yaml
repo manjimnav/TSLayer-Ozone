@@ -4,7 +4,6 @@ aljarafe:
     - 72
   pred_len: 24
   shift: 24
-  select_timesteps: True
   crossval: True
   
 asomadilla:
@@ -13,7 +12,6 @@ asomadilla:
     - 72
   pred_len: 24
   shift: 24
-  select_timesteps: True
   crossval: True
   
 bermejales:
@@ -22,7 +20,6 @@ bermejales:
     - 72
   pred_len: 24
   shift: 24
-  select_timesteps: True
   crossval: True
 
 rondadelvalle:
@@ -31,7 +28,6 @@ rondadelvalle:
     - 72
   pred_len: 24
   shift: 24
-  select_timesteps: True
   crossval: True
 
 torneo:
@@ -40,5 +36,4 @@ torneo:
     - 72
   pred_len: 24
   shift: 24
-  select_timesteps: True
   crossval: True

@@ -16,10 +16,19 @@ import hashlib
 import json
 from copy import deepcopy
 from bayes_opt import BayesianOptimization, UtilityFunction
-
+from datetime import datetime, timedelta
+from typing import Tuple, Iterable, Union, Optional
+from sklearn.base import BaseEstimator
 
 
 class ExperimentInstance:
+
+    """
+    Initialize an ExperimentInstance which runs a single experiment with a set of parameters.
+
+    Args:
+        parameters (dict): Experiment parameters.
+    """
 
     def __init__(self, parameters) -> None:
         
@@ -31,6 +40,7 @@ class ExperimentInstance:
         self.label_idxs, self.values_idxs = [], []
         self.code = self.dict_hash(parameters)
         self.selected_idxs = []
+        self.raw_results_ = []
 
         parent_directory = Path(__file__).resolve().parents[1]
         self.dataset_path = f'{parent_directory}/data/processed/{self.dataset}/data.csv'
@@ -39,8 +49,11 @@ class ExperimentInstance:
         if isinstance(num, np.int64) or isinstance(num, np.int32): return int(num)  
         raise TypeError
 
-    def dict_hash(self, dictionary) -> str:
-        """MD5 hash of a dictionary."""
+    def dict_hash(self, dictionary:dict) -> str:
+        """
+        MD5 hash of the parameters used as experiment identifier.
+        
+        """
         dhash = hashlib.md5()
         # We need to sort arguments so {'a': 1, 'b': 2} is
         # the same as {'b': 2, 'a': 1}
@@ -49,10 +62,14 @@ class ExperimentInstance:
         dhash.update(encoded)
         return dhash.hexdigest()
 
-    def preprocess_data(self):
+    def preprocess_data(self) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
+        """
+        Preprocess the data for training.
+
+        Returns:
+            Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]: Training, validation, and test datasets.
+        """
         self.label_idxs, self.values_idxs = get_values_and_labels_index(self.data)
-        if len(self.values_idxs)<1 and not self.parameters['dataset']['params'].get('select_timesteps', False):
-            raise Exception(f"Cannot select features in dataset {self.parameters['dataset']['name']}")
             
         train_df, valid_df, test_df = split(self.data, self.parameters)
 
@@ -64,10 +81,21 @@ class ExperimentInstance:
         
         return data_train, data_valid, data_test
 
-    def read_data(self):
+    def read_data(self) -> None:
+        """Read data from the dataset path."""
         self.data = pd.read_csv(self.dataset_path)
     
-    def recursive_items(self, dictionary, parent_key=None):
+    def recursive_items(self, dictionary, parent_key=None) -> Iterable:
+        """
+        Recursively iterate over dictionary items.
+
+        Args:
+            dictionary (dict): The input dictionary.
+            parent_key (str, optional): The parent key in the recursion. Defaults to None.
+
+        Yields:
+            Iterable: Key-value pairs.
+        """
         for key, value in dictionary.items():
             key = key if parent_key is None else parent_key+'_'+key
             if type(value) is dict:
@@ -76,7 +104,18 @@ class ExperimentInstance:
                 yield (key, value)
 
     
-    def train_tf(self, model, data_train, data_valid):
+    def train_tf(self, model: tf.keras.Model, data_train: tf.data.Dataset, data_valid: tf.data.Dataset) -> Tuple[tf.keras.Model, tf.keras.callbacks.History]:
+        """
+        Train a TensorFlow model.
+
+        Args:
+            model (tf.keras.Model): The model to train.
+            data_train (tf.data.Dataset): Training data.
+            data_valid (tf.data.Dataset): Validation data.
+
+        Returns:
+            Tuple[tf.keras.Model, tf.keras.callbacks.History]: Trained model and training history.
+        """
 
         callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=10, restore_best_weights=True)
 
@@ -93,7 +132,17 @@ class ExperimentInstance:
 
         return model, history
     
-    def train_sk(self, model, data_train):
+    def train_sk(self, model: BaseEstimator, data_train: np.ndarray) -> Tuple[BaseEstimator, None]:
+        """
+        Train a scikit-learn model.
+
+        Args:
+            model: The scikit-learn model to train.
+            data_train (tuple): Training data as a tuple of inputs and outputs.
+
+        Returns:
+            Tuple[Any, None]: Trained model and None (no training history).
+        """
 
         model_name = self.parameters['model']['name']
 
@@ -110,7 +159,18 @@ class ExperimentInstance:
 
         return model, None
 
-    def train(self, model, data_train, data_valid):
+    def train(self, model: Union[tf.keras.Model, BaseEstimator], data_train, data_valid) -> Tuple[Union[tf.keras.Model, BaseEstimator], Optional[tf.keras.callbacks.History]]:
+        """
+        Train a model.
+
+        Args:
+            model: The model to train.
+            data_train: Training data.
+            data_valid: Validation data.
+
+        Returns:
+            Tuple[Union[tf.keras.Model, Any], Optional[tf.keras.callbacks.History]]: Trained model and training history (if available).
+        """
 
         model_type = self.parameters['model']['params']['type']
 
@@ -122,7 +182,20 @@ class ExperimentInstance:
         return model, history
         
 
-    def calculate_metrics(self, model, history, data_test, data_valid, duration):
+    def calculate_metrics(self, model: Union[tf.keras.Model, BaseEstimator], history: tf.keras.callbacks.History, data_test: np.ndarray, data_valid: np.ndarray, duration: float) -> Tuple[pd.DataFrame, tf.Tensor, tf.Tensor, tf.Tensor]:
+        """
+        Calculate evaluation metrics.
+
+        Args:
+            model: The trained model.
+            history: The training history (optional).
+            data_test (tuple): Test data as a tuple of inputs and outputs.
+            data_valid (tf.data.Dataset): Validation data.
+            duration (float): Duration of training.
+
+        Returns:
+            Tuple[pd.DataFrame, tf.Tensor, tf.Tensor, tf.Tensor]: Metrics DataFrame, test data inputs, true values, and predictions.
+        """
 
         model_type = self.parameters['model']['params']['type']
         
@@ -162,10 +235,19 @@ class ExperimentInstance:
             metrics['val_loss'] = min(history.history.get('val_loss', None))
 
         metrics['code'] = self.code
+
+        true = true.flatten()
+        predictions = predictions.flatten()
         
-        return metrics
+        return metrics, data_test[0], true, predictions
     
-    def execute_one(self):
+    def execute_one(self) -> Tuple[pd.DataFrame, tf.Tensor, tf.Tensor, tf.Tensor]:
+        """
+        Execute a single experiment instance.
+
+        Returns:
+            Tuple[pd.DataFrame, tf.Tensor, tf.Tensor, tf.Tensor]: Metrics DataFrame, test data inputs, true values, and predictions.
+        """
         data_train, data_valid, data_test = self.preprocess_data()
 
         model = get_model(self.parameters, self.label_idxs, self.values_idxs)
@@ -178,7 +260,13 @@ class ExperimentInstance:
 
         return metrics
     
-    def run(self):
+    def run(self) -> pd.DataFrame:
+        """
+        Run the experiment instance.
+
+        Returns:
+            pd.DataFrame: Metrics DataFrame.
+        """
         
         self.read_data()
 
@@ -188,15 +276,32 @@ class ExperimentInstance:
         if split_by_year:
             for test_year in sorted(self.data.year.unique()): # yearly crossval
                 test_year = self.parameters['dataset']['params']['test_year'] = test_year
-                year_metrics = self.execute_one()
+                year_metrics, inputs, true, predictions = self.execute_one()
 
                 self.metrics = pd.concat([self.metrics, year_metrics])
+
+                dates = pd.date_range(datetime(test_year, 1, 1) + timedelta(hours=25), datetime(test_year, 12, 31), freq='H')
+                dates = dates[:len(true)]
+                self.raw_results_.append((dates, inputs, true, predictions))
         else:
-            self.metrics = self.execute_one() 
+            self.metrics, inputs, true, predictions = self.execute_one() 
+            dates = pd.date_range(datetime(2015, 1, 1) + timedelta(hours=self.parameters['dataset']['params']['seq_len']+1), datetime(2016, 1, 1), freq='H')
+            dates = dates[:len(true)]
+            self.raw_results_.append((dates, inputs, true, predictions))
 
         return self.metrics
 
 class ExperimentLauncher:
+
+    """
+    Initialize an ExperimentLauncher.
+
+    Args:
+        config_path (str): Path to the configuration files.
+        save_file (str, optional): Path to save the results CSV file. Defaults to "../results/TimeSelection/results.csv".
+        search_type (str, optional): Search type, either 'grid' or 'bayesian'. Defaults to 'grid'.
+        iterations (int, optional): Number of iterations for Bayesian optimization. Defaults to 10.
+    """
 
     def __init__(self, config_path, save_file="../results/TimeSelection/results.csv", search_type='grid', iterations=10) -> None:
         
@@ -216,7 +321,16 @@ class ExperimentLauncher:
         else:
             self.metrics = pd.DataFrame()
     
-    def nested_product(self, configurations):
+    def nested_product(self, configurations: Union[dict, list]) -> Iterable:
+        """
+        Generate nested product configurations.
+
+        Args:
+            configurations: Configuration dictionary.
+
+        Yields:
+            Iterable: Nested product configurations.
+        """
         if isinstance(configurations, list):
             for value in configurations:
                 yield from ([value] if not isinstance(value, (dict, list)) else self.nested_product(value))
@@ -230,7 +344,16 @@ class ExperimentLauncher:
         else:
             yield configurations
 
-    def load_config(self, path):
+    def load_config(self, path: str) -> dict:
+        """
+        Load a YAML configuration file.
+
+        Args:
+            path (str): Path to the YAML configuration file.
+
+        Returns:
+            dict: Loaded configuration as a dictionary.
+        """
         config = {}
         with open(path, "r") as stream:
             try:
@@ -240,12 +363,27 @@ class ExperimentLauncher:
                 raise Exception("Configuration at path {path} was not found")
         return config
     
-    def seed(self, seed = 123):
+    def seed(self, seed: int = 123) -> None:
+        """
+        Seed random number generators for reproducibility.
+
+        Args:
+            seed (int, optional): Random seed. Defaults to 123.
+        """
         tf.random.set_seed(seed)
         random.seed(seed)
         np.random.seed(seed)
 
-    def transform_to_bounds(self, general_params):
+    def transform_to_bounds(self, general_params: dict) -> dict:
+        """
+        Transform general parameters to bounds for Bayesian optimization.
+
+        Args:
+            general_params (dict): General parameters.
+
+        Returns:
+            dict: Bounds for Bayesian optimization.
+        """
         bounds = {}
         for general_key in general_params.keys():
             if general_params[general_key]['params'] is not None:
@@ -255,7 +393,17 @@ class ExperimentLauncher:
         
         return bounds
     
-    def update_params(self, optimized_params, general_params):
+    def update_params(self, optimized_params: dict, general_params: dict) -> dict:
+        """
+        Update general parameters with optimized values.
+
+        Args:
+            optimized_params (dict): Optimized parameters.
+            general_params (dict): General parameters.
+
+        Returns:
+            dict: Updated general parameters.
+        """
         
         params = deepcopy(general_params)
         for general_key in params.keys():
@@ -268,7 +416,16 @@ class ExperimentLauncher:
                         params[general_key]['params'][key_to_update] = BuiltinClass(optimized_params[key_to_update])
         return params
     
-    def bayesian_optimization(self, general_params):
+    def bayesian_optimization(self, general_params: dict) -> Iterable:
+        """
+        Perform Bayesian optimization for hyperparameter search.
+
+        Args:
+            general_params (dict): General parameters.
+
+        Yields:
+            Iterable: Hyperparameter configurations.
+        """
 
         bounds = self.transform_to_bounds(general_params)
 
@@ -288,14 +445,29 @@ class ExperimentLauncher:
 
             yield params
 
-    def search_hyperparameters(self, general_params):
+    def search_hyperparameters(self, general_params: dict) -> Iterable:
+        """
+        Search hyperparameters using grid search or Bayesian optimization.
+
+        Args:
+            general_params (dict): General parameters.
+
+        Yields:
+            Iterable: Hyperparameter configurations.
+        """
         if self.search_type == 'grid':
             yield from self.nested_product(general_params)
         elif self.search_type == 'bayesian':
             yield from self.bayesian_optimization(general_params)
         
 
-    def run(self):
+    def run(self) -> pd.DataFrame:
+        """
+        Run the experiment launcher.
+
+        Returns:
+            pd.DataFrame: Metrics DataFrame.
+        """
 
         for dataset, selection, model in product(self.data_configuration.keys(), self.selection_configuration.keys(), self.model_configuration.keys()):
             

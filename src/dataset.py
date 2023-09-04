@@ -5,17 +5,29 @@ import numpy as np
 from functools import partial
 
 
-def collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs=None, select_timesteps=False, keep_dims=False):
+def collate_pair(x: tf.Tensor, pred_len: int, values_idxs: list, label_idxs: list, selection_idxs: tf.Tensor = None, keep_dims: bool = False) -> tuple:
+    """
+    Collate input data into pairs of selected inputs and corresponding outputs.
+
+    Args:
+        x (tf.Tensor): Input data.
+        pred_len (int): Prediction length.
+        values_idxs (list): Indices of value columns.
+        label_idxs (list): Indices of label columns.
+        selection_idxs (tf.Tensor, optional): Indices of selected features. Defaults to None.
+        keep_dims (bool, optional): Whether to keep dimensions when selecting features. Defaults to False.
+
+    Returns:
+        tuple: Selected inputs and outputs as tensors.
+    """
     seq_len = len(x)-pred_len
     inputs = x[:-pred_len]
 
     feat_size = len(label_idxs) + len(values_idxs)
 
-    if select_timesteps:
-        selected_inputs = tf.gather(tf.reshape(
-            inputs, [seq_len*feat_size]), selection_idxs)
-    else:
-        selected_inputs = tf.squeeze(tf.gather(inputs, selection_idxs, axis=1))
+    selected_inputs = tf.gather(tf.reshape(
+        inputs, [seq_len*feat_size]), selection_idxs)
+    
 
     if keep_dims:
         padded_selection = tf.zeros_like(
@@ -29,11 +41,30 @@ def collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs=None, sele
     return selected_inputs, outputs
 
 
-def batch(seq_len, x):
+def batch(seq_len: int, x: tf.Tensor) -> tf.Tensor:
+    """
+    Batch the input data with a specified sequence length.
+
+    Args:
+        seq_len (int): Sequence length.
+        x (tf.Tensor): Input data.
+
+    Returns:
+        tf.Tensor: Batches of data.
+    """
     return x.batch(seq_len)
 
 
-def get_values_and_labels_index(data):
+def get_values_and_labels_index(data: np.ndarray) -> tuple:
+    """
+    Get the indices of value and label columns in the input data.
+
+    Args:
+        data (np.ndarray): Input data.
+
+    Returns:
+        tuple: Indices of label columns and value columns.
+    """
     label_idxs = [idx for idx, col in enumerate(
         data.drop('year', axis=1).columns) if 'target' in col]
     values_idxs = [idx for idx, col in enumerate(
@@ -42,7 +73,18 @@ def get_values_and_labels_index(data):
     return label_idxs, values_idxs
 
 
-def scale(train_df, valid_df, test_df):
+def scale(train_df: np.ndarray, valid_df: np.ndarray, test_df: np.ndarray) -> tuple:
+    """
+    Scale the input datasets using StandardScaler.
+
+    Args:
+        train_df (np.ndarray): Training dataset.
+        valid_df (np.ndarray): Validation dataset.
+        test_df (np.ndarray): Test dataset.
+
+    Returns:
+        tuple: Scaled training, validation, and test datasets, and the scaler object.
+    """
 
     scaler = StandardScaler()
 
@@ -55,7 +97,17 @@ def scale(train_df, valid_df, test_df):
     return train_scaled, valid_scaled, test_scaled, scaler
 
 
-def split(data, parameters):
+def split(data: np.ndarray, parameters: dict) -> tuple:
+    """
+    Split the data into training, validation, and test datasets based on the given parameters.
+
+    Args:
+        data (np.ndarray): Input data.
+        parameters (dict): Model parameters.
+
+    Returns:
+        tuple: Training, validation, and test datasets.
+    """
 
     input_columns = [col for col in data.columns.tolist() if col != 'year']
 
@@ -86,12 +138,25 @@ def split(data, parameters):
     return train_df, valid_df, test_df
 
 
-def windowing(train_scaled, valid_scaled, test_scaled, values_idxs, label_idxs, selection_idxs, parameters):
+def windowing(train_scaled: np.ndarray, valid_scaled: np.ndarray, test_scaled: np.ndarray, values_idxs: list, label_idxs: list, selection_idxs: tf.Tensor, parameters: dict) -> tuple:
+    """
+    Prepare the data for windowing and batching.
 
+    Args:
+        train_scaled (np.ndarray): Scaled training dataset.
+        valid_scaled (np.ndarray): Scaled validation dataset.
+        test_scaled (np.ndarray): Scaled test dataset.
+        values_idxs (list): Indices of value columns.
+        label_idxs (list): Indices of label columns.
+        selection_idxs (tf.Tensor): Indices of selected features.
+        parameters (dict): Model parameters.
+
+    Returns:
+        tuple: Training, validation, and test datasets in the specified format.
+    """
     seq_len = parameters['dataset']['params']['seq_len']
     pred_len = parameters['dataset']['params']['pred_len']
     shift = parameters['dataset']['params']['shift'] or seq_len
-    select_timesteps = parameters['dataset']['params']['select_timesteps']
     model_type = parameters['model']['params']['type']
 
     keep_dims = parameters['model']['params'].get('keep_dims', False)
@@ -102,11 +167,11 @@ def windowing(train_scaled, valid_scaled, test_scaled, values_idxs, label_idxs, 
 
     batch_seq = partial(batch, seq_len+pred_len)
     data_train = data_train.window(seq_len+pred_len, shift=shift, drop_remainder=True).flat_map(batch_seq).map(
-        lambda x: collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs, select_timesteps, keep_dims))
+        lambda x: collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs, keep_dims))
     data_valid = data_valid.window(seq_len+pred_len, shift=shift, drop_remainder=True).flat_map(batch_seq).map(
-        lambda x: collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs, select_timesteps, keep_dims))
+        lambda x: collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs, keep_dims))
     data_test = data_test.window(seq_len+pred_len, shift=shift, drop_remainder=True).flat_map(batch_seq).map(
-        lambda x: collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs, select_timesteps, keep_dims))
+        lambda x: collate_pair(x, pred_len, values_idxs, label_idxs, selection_idxs, keep_dims))
 
     if model_type == 'tensorflow':
         data_train = data_train.batch(
@@ -119,22 +184,18 @@ def windowing(train_scaled, valid_scaled, test_scaled, values_idxs, label_idxs, 
         data_valid.batch(999999).__iter__())))
     data_test = list(map(lambda x: x.numpy(), next(
         data_test.batch(999999).__iter__())))
-
+    
     return data_train, data_valid, data_test
 
 
 def get_feature_names(data, parameters):
 
     seq_len = parameters['dataset']['params']['seq_len']
-    select_timesteps = parameters['dataset']['params']['select_timesteps']
 
     feature_names = np.array(
         [col for col in data.drop('year', axis=1).columns])
 
-    if select_timesteps:
-        features = np.array([np.core.defchararray.add(
-            feature_names, ' t-'+str(i)) for i in range(seq_len, 0, -1)]).flatten()
-    else:
-        features = feature_names
+    features = np.array([np.core.defchararray.add(
+        feature_names, ' t-'+str(i)) for i in range(seq_len, 0, -1)]).flatten()
 
     return features

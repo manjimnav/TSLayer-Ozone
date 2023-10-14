@@ -1,6 +1,0 @@
-dense:
-  keep_dims: False
-  type: tensorflow
-  units: 40
-  layers: 2
-  dropout: 0.15

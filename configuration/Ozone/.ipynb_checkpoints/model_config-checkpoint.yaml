@@ -1,19 +1,6 @@
 dense:
   keep_dims: False
   type: tensorflow
-
-lstm:
-  keep_dims: True
-  type: tensorflow
-
-cnn:
-  keep_dims: True
-  type: tensorflow
-
-decisiontree:
-  keep_dims: False
-  type: sklearn
-
-lasso:
-  keep_dims: False
-  type: sklearn
+  units: 40
+  layers: 2
+  dropout: 0.15

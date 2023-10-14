@@ -91,7 +91,7 @@ def windowing(train_scaled, valid_scaled, test_scaled, values_idxs, label_idxs, 
     seq_len = parameters['dataset']['params']['seq_len']
     pred_len = parameters['dataset']['params']['pred_len']
     shift = parameters['dataset']['params']['shift'] or seq_len
-    select_timesteps = parameters['dataset']['params']['select_timesteps']
+    select_timesteps = parameters['dataset']['params'].get('select_timesteps', True)
     model_type = parameters['model']['params']['type']
 
     keep_dims = parameters['model']['params'].get('keep_dims', False)
@@ -126,7 +126,7 @@ def windowing(train_scaled, valid_scaled, test_scaled, values_idxs, label_idxs, 
 def get_feature_names(data, parameters):
 
     seq_len = parameters['dataset']['params']['seq_len']
-    select_timesteps = parameters['dataset']['params']['select_timesteps']
+    select_timesteps = parameters['dataset']['params'].get('select_timesteps', True)
 
     feature_names = np.array(
         [col for col in data.drop('year', axis=1).columns])

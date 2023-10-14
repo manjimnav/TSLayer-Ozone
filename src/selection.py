@@ -53,7 +53,7 @@ def select_features(data, parameters, labels_idxs):
     seq_len = parameters['dataset']['params']['seq_len']
     pred_len = parameters['dataset']['params']['pred_len']
     shift = parameters['dataset']['params']['shift']
-    select_timesteps = parameters['dataset']['params']['select_timesteps']
+    select_timesteps = parameters['dataset']['params'].get('select_timesteps', True)
     selection_method = parameters['selection']['name']
 
     original_indexes = np.arange(data.shape[1]*seq_len)

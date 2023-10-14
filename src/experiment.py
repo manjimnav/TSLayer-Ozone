@@ -51,7 +51,7 @@ class ExperimentInstance:
 
     def preprocess_data(self):
         self.label_idxs, self.values_idxs = get_values_and_labels_index(self.data)
-        if len(self.values_idxs)<1 and not self.parameters['dataset']['params'].get('select_timesteps', False):
+        if len(self.values_idxs)<1 and not self.parameters['dataset']['params'].get('select_timesteps', True):
             raise Exception(f"Cannot select features in dataset {self.parameters['dataset']['name']}")
             
         train_df, valid_df, test_df = split(self.data, self.parameters)

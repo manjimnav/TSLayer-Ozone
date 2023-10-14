@@ -22,7 +22,7 @@ def get_base_layer(layer_type):
     if layer_type == 'dense':
         layer_base = layers.Dense
     elif layer_type == 'lstm':
-        layer_base = partial(layers.LSTM, return_sequences=True)
+        layer_base = layers.LSTM
     elif layer_type == 'cnn':
         layer_base = partial(layers.Conv1D, kernel_size=3)
 
@@ -30,7 +30,7 @@ def get_base_layer(layer_type):
 
 def head_layers(parameters, n_features_out, name=''):
     selection = parameters['selection']['name']
-    select_timesteps = parameters['dataset']['params']['select_timesteps']
+    select_timesteps = parameters['dataset']['params'].get('select_timesteps', True)
     
     head_layers = []
     if selection == 'TimeSelectionLayer':
@@ -65,7 +65,6 @@ def get_tf_model(parameters, label_idxs, values_idxs):
     residual = residual.get('residual', False)
     pred_len = parameters['dataset']['params']['pred_len']
     seq_len = parameters['dataset']['params']['seq_len']
-    select_timesteps = parameters['dataset']['params']['select_timesteps']
     
     activation, loss, metrics = get_hyperparameters()
 
@@ -87,8 +86,13 @@ def get_tf_model(parameters, label_idxs, values_idxs):
             formatted_inputs = inputs if header is None else header(inputs)
         
             x = layers.Concatenate()([x, formatted_inputs])
-        
-        x = layer_base(n_units, activation="relu" if model != 'lstm' else "tanh", name=f"layer{i}")(x)
+
+        if model == 'lstm' and i < n_layers-1:
+            kargs = {"return_sequences": True}
+        else:
+            kargs = {}
+
+        x = layer_base(n_units, activation="relu" if model != 'lstm' else "tanh", name=f"layer{i}", **kargs)(x)
         x = layers.Dropout(dropout)(x)
     
     if residual:

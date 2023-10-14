@@ -1,4 +1,4 @@
-rondadelvalle:
+aljarafe:
   seq_len:
     - 24
     - 72
@@ -12,8 +12,10 @@ rondadelvalle:
     - 24
   select_timesteps:
     - True
+  select_timesteps: True
+  crossval: True
 
-torneo:
+asomadilla:
   seq_len:
     - 24
     - 72
@@ -27,7 +29,9 @@ torneo:
     - 24
   select_timesteps:
     - True
-
+  select_timesteps: True
+  crossval: True
+  
 bermejales:
   seq_len:
     - 24
@@ -42,3 +46,39 @@ bermejales:
     - 24
   select_timesteps:
     - True
+  select_timesteps: True
+  crossval: True
+  
+rondadelvalle:
+  seq_len:
+    - 24
+    - 72
+    - step: 24
+  pred_len:
+    - 1
+    - 8
+    - 16
+    - 24
+  shift:
+    - 24
+  select_timesteps:
+    - True
+  select_timesteps: True
+  crossval: True
+  
+torneo:
+  seq_len:
+    - 24
+    - 72
+    - step: 24
+  pred_len:
+    - 1
+    - 8
+    - 16
+    - 24
+  shift:
+    - 24
+  select_timesteps:
+    - True
+  select_timesteps: True
+  crossval: True

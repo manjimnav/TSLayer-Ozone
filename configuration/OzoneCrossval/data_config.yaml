@@ -4,7 +4,6 @@ aljarafe:
     - 72
   pred_len: 24
   shift: 24
-  select_timesteps: True
   crossval: True
   
 asomadilla:
@@ -13,32 +12,44 @@ asomadilla:
     - 72
   pred_len: 24
   shift: 24
-  select_timesteps: True
   crossval: True
   
+aljarafe:
+  seq_len:
+    - 24
+    - 72
+  pred_len: 24
+  shift: 24
+  crossval: True
+
+asomadilla:
+  seq_len:
+    - 24
+    - 72
+  pred_len: 24
+  shift: 24
+  crossval: True
+
 bermejales:
   seq_len:
     - 24
     - 72
   pred_len: 24
   shift: 24
-  select_timesteps: True
   crossval: True
 
 rondadelvalle:
   seq_len:
     - 24
-    - 1
+    - 72
   pred_len: 24
   shift: 24
-  select_timesteps: True
   crossval: True
 
 torneo:
   seq_len:
     - 24
-    - 1
+    - 72
   pred_len: 24
   shift: 24
-  select_timesteps: True
   crossval: True

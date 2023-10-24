@@ -93,6 +93,7 @@ def get_tf_model(parameters: dict, label_idxs: list, values_idxs: list) -> keras
     n_layers = parameters['model']['params']['layers']
     n_units = parameters['model']['params']['units']
     dropout = parameters['model']['params']['dropout']
+    lr = parameters['model']['params']['lr']
     pred_len = parameters['dataset']['params']['pred_len']
     seq_len = parameters['dataset']['params']['seq_len']
     
@@ -111,11 +112,6 @@ def get_tf_model(parameters: dict, label_idxs: list, values_idxs: list) -> keras
     x = inputs if header is None else header(inputs)
     
     for i in range(n_layers):
-        if i > 0 and residual:
-            header = keras.Sequential(head_layers(parameters, n_features_out*pred_len, name=f'selection_{i}'))
-            formatted_inputs = inputs if header is None else header(inputs)
-        
-            x = layers.Concatenate()([x, formatted_inputs])
 
         if model == 'lstm' and i < n_layers-1:
             kargs = {"return_sequences": True}
@@ -129,7 +125,7 @@ def get_tf_model(parameters: dict, label_idxs: list, values_idxs: list) -> keras
     model = keras.Model(inputs=inputs_raw, outputs=outputs, name="tsmodel")
         
     model.compile(
-        optimizer=keras.optimizers.Adam(),
+        optimizer=keras.optimizers.Adam(learning_rate=lr),
         loss=loss,
         metrics=metrics
     )

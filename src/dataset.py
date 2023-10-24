@@ -159,6 +159,7 @@ def windowing(train_scaled: np.ndarray, valid_scaled: np.ndarray, test_scaled: n
     shift = parameters['dataset']['params']['shift'] or seq_len
     select_timesteps = parameters['dataset']['params'].get('select_timesteps', True)
     model_type = parameters['model']['params']['type']
+    batch_size = parameters['model']['params']['batch_size']
 
     keep_dims = parameters['model']['params'].get('keep_dims', False)
 
@@ -176,7 +177,7 @@ def windowing(train_scaled: np.ndarray, valid_scaled: np.ndarray, test_scaled: n
 
     if model_type == 'tensorflow':
         data_train = data_train.batch(
-            32, drop_remainder=True).cache().prefetch(tf.data.AUTOTUNE)
+            batch_size, drop_remainder=True).cache().prefetch(tf.data.AUTOTUNE)
     else:
         data_train = list(map(lambda x: x.numpy(), next(
             data_train.batch(999999).__iter__())))

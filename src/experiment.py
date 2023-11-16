@@ -36,11 +36,13 @@ class ExperimentInstance:
         self.metrics = pd.DataFrame()
         self.data = None
         self.scaler = None
+        self.model = None
         self.dataset = self.parameters['dataset']['name']
         self.label_idxs, self.values_idxs = [], []
         self.code = self.dict_hash(parameters)
         self.selected_idxs = []
         self.raw_results_ = []
+        self.data_train = None
 
         parent_directory = Path(__file__).resolve().parents[1]
         self.dataset_path = f'{parent_directory}/data/processed/{self.dataset}/data.csv'
@@ -80,6 +82,8 @@ class ExperimentInstance:
         self.selected_idxs = select_features(train_scaled, self.parameters, self.label_idxs)
 
         data_train, data_valid, data_test = windowing(train_scaled, valid_scaled, test_scaled, self.values_idxs, self.label_idxs, self.selected_idxs, self.parameters)
+        
+        self.data_train = np.concatenate(list(map(lambda x: x.numpy(), next(data_train.batch(9999999999).__iter__())))[0])
         
         return data_train, data_valid, data_test
 
@@ -255,10 +259,10 @@ class ExperimentInstance:
         model = get_model(self.parameters, self.label_idxs, self.values_idxs)
 
         start = time.time()
-        model, history = self.train(model, data_train, data_valid)
+        self.model, history = self.train(model, data_train, data_valid)
         duration = time.time() - start
 
-        metrics = self.calculate_metrics(model, history, data_test, data_valid, duration)
+        metrics = self.calculate_metrics(self.model, history, data_test, data_valid, duration)
 
         return metrics
     
@@ -277,6 +281,7 @@ class ExperimentInstance:
         self.metrics = pd.DataFrame()
         if split_by_year:
             for test_year in sorted(self.data.year.unique()): # yearly crossval
+                if test_year<2015: continue
                 test_year = self.parameters['dataset']['params']['test_year'] = test_year
                 year_metrics, inputs, true, predictions = self.execute_one()
 
@@ -287,9 +292,9 @@ class ExperimentInstance:
                 self.raw_results_.append((dates, inputs, true, predictions))
         else:
             self.metrics, inputs, true, predictions = self.execute_one() 
-            dates = pd.date_range(datetime(2015, 1, 1) + timedelta(hours=self.parameters['dataset']['params']['seq_len']+1), datetime(2016, 1, 1), freq='H')
-            dates = dates[:len(true)]
-            self.raw_results_.append((dates, inputs, true, predictions))
+            #dates = pd.date_range(datetime(test_year, 1, 1) + timedelta(hours=25), datetime(test_year, 12, 31), freq='H')
+            #dates = dates[:len(true)]
+            self.raw_results_.append((inputs, true, predictions))
 
         return self.metrics
 

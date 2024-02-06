@@ -281,8 +281,7 @@ class ExperimentInstance:
         self.metrics = pd.DataFrame()
         if split_by_year:
             for test_year in sorted(self.data.year.unique()): # yearly crossval
-                if test_year<2015: continue
-                test_year = self.parameters['dataset']['params']['test_year'] = test_year
+                self.parameters['dataset']['params']['test_year'] = test_year
                 year_metrics, inputs, true, predictions = self.execute_one()
 
                 self.metrics = pd.concat([self.metrics, year_metrics])
@@ -291,10 +290,18 @@ class ExperimentInstance:
                 dates = dates[:len(true)]
                 self.raw_results_.append((dates, inputs, true, predictions))
         else:
+            if "year" in self.data.columns:
+                self.parameters['dataset']['params']['test_year'] = self.data["year"].max()
+                
             self.metrics, inputs, true, predictions = self.execute_one() 
-            #dates = pd.date_range(datetime(test_year, 1, 1) + timedelta(hours=25), datetime(test_year, 12, 31), freq='H')
-            #dates = dates[:len(true)]
-            self.raw_results_.append((inputs, true, predictions))
+
+            if "year" in self.data.columns:
+                test_year = self.parameters['dataset']['params']['test_year']
+                dates = pd.date_range(datetime(test_year, 1, 1) + timedelta(hours=25), datetime(test_year, 12, 31), freq='H')
+                dates = dates[:len(true)]
+                self.raw_results_.append((dates, inputs, true, predictions))
+            else:
+                self.raw_results_.append((inputs, true, predictions))
 
         return self.metrics
 

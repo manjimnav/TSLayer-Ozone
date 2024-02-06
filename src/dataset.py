@@ -111,10 +111,10 @@ def split(data: np.ndarray, parameters: dict) -> tuple:
 
     input_columns = [col for col in data.columns.tolist() if col != 'year']
 
-    split_by_year = parameters['dataset']['params'].get('crossval', False)
-    if split_by_year:
+    #split_by_year = parameters['dataset']['params'].get('crossval', False)
+    test_year = parameters['dataset']['params'].get('test_year', None)
 
-        test_year = parameters['dataset']['params'].get('test_year', -1)
+    if test_year != None:
         first_year = min(data.year.unique())
 
         val_year = test_year-1 if test_year > first_year else first_year+1
@@ -125,7 +125,6 @@ def split(data: np.ndarray, parameters: dict) -> tuple:
         valid_df = data.loc[data.year == val_year, input_columns].values
 
         test_df = data.loc[data.year == test_year, input_columns].values
-
     else:
 
         data = data.loc[:, input_columns]
